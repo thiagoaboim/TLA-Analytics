@@ -32,7 +32,7 @@ if file_seinfra and file_user:
     df_seinfra = pd.read_excel(file_seinfra)
     
     # Lendo Planilha do Usuário (Tratando o CSV enviado ou XLSX)
-    if file_user.name.endswith('.csv'):
+if file_user.name.endswith('.csv'):
         df_user = pd.read_csv(file_user, skiprows=7) # Pula o cabeçalho conforme seu modelo
     else:
         df_user = pd.read_excel(file_user, skiprows=7)
@@ -55,7 +55,7 @@ if 'Insumo' not in df_user.columns:
     df_user = df_user[
     (df_user['Insumo'].notna()) &
     (df_user['Insumo'] != '')
-    ]
+]
     
     # Cruzamento de Dados (Merge)
     # Buscamos o Preço Unitário na Seinfra usando o Insumo da sua planilha
