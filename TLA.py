@@ -82,9 +82,25 @@ with st.sidebar:
     )
 
 # ==========================================
+# FUNÇÃO DE LIMPEZA DE COLUNAS
+# ==========================================
+def limpar_colunas(df):
+
+    df.columns = (
+        df.columns
+        .astype(str)
+        .str.strip()
+        .str.replace("\n", "", regex=False)
+        .str.replace("\r", "", regex=False)
+        .str.replace("  ", " ", regex=False)
+    )
+
+    return df
+
+# ==========================================
 # EXECUÇÃO PRINCIPAL
 # ==========================================
-if file_seinfra and file_user:
+if file_seinfra is not None and file_user is not None:
 
     try:
 
@@ -93,17 +109,52 @@ if file_seinfra and file_user:
         # ==========================================
         df_seinfra = pd.read_excel(file_seinfra)
 
-        # Padroniza nomes das colunas
-        df_seinfra.columns = (
-            df_seinfra.columns
-            .astype(str)
-            .str.strip()
-        )
+        # Limpa colunas
+        df_seinfra = limpar_colunas(df_seinfra)
+
+        # ==========================================
+        # GARANTE COLUNA INSUMO NA SEINFRA
+        # ==========================================
+        if "Insumo" not in df_seinfra.columns:
+
+            for coluna in df_seinfra.columns:
+
+                if "insumo" in coluna.lower():
+
+                    df_seinfra.rename(
+                        columns={coluna: "Insumo"},
+                        inplace=True
+                    )
+
+                    break
+
+        # ==========================================
+        # GARANTE COLUNA PREÇO UNITÁRIO
+        # ==========================================
+        if "PREÇO UNITÁRIO" not in df_seinfra.columns:
+
+            for coluna in df_seinfra.columns:
+
+                nome = coluna.upper()
+
+                if (
+                    "PREÇO" in nome
+                    or "PRECO" in nome
+                    or "UNITÁRIO" in nome
+                    or "UNITARIO" in nome
+                ):
+
+                    df_seinfra.rename(
+                        columns={coluna: "PREÇO UNITÁRIO"},
+                        inplace=True
+                    )
+
+                    break
 
         # ==========================================
         # LEITURA PLANILHA USUÁRIO
         # ==========================================
-        if file_user.name.endswith(".csv"):
+        if file_user.name.lower().endswith(".csv"):
 
             df_user = pd.read_csv(
                 file_user,
@@ -118,31 +169,35 @@ if file_seinfra and file_user:
             )
 
         # ==========================================
-        # PADRONIZA COLUNAS
+        # LIMPA COLUNAS
         # ==========================================
-        df_user.columns = (
-            df_user.columns
-            .astype(str)
-            .str.strip()
-        )
+        df_user = limpar_colunas(df_user)
 
         # ==========================================
-        # DEBUG TEMPORÁRIO
-        # ==========================================
-        st.write("Colunas encontradas:")
-        st.write(df_user.columns.tolist())
-
-        # ==========================================
-        # REMOVE LINHAS TOTALMENTE VAZIAS
+        # REMOVE LINHAS VAZIAS
         # ==========================================
         df_user = df_user.dropna(how="all")
 
         # ==========================================
-        # GARANTE COLUNA INSUMO
+        # DEBUG
+        # ==========================================
+        st.subheader("🔍 Colunas Detectadas")
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.write("Planilha Usuário:")
+            st.write(df_user.columns.tolist())
+
+        with c2:
+            st.write("Tabela Seinfra:")
+            st.write(df_seinfra.columns.tolist())
+
+        # ==========================================
+        # GARANTE COLUNA INSUMO NO USUÁRIO
         # ==========================================
         if "Insumo" not in df_user.columns:
 
-            # Procura automaticamente coluna parecida
             for coluna in df_user.columns:
 
                 if "insumo" in coluna.lower():
@@ -155,10 +210,25 @@ if file_seinfra and file_user:
                     break
 
         # ==========================================
-        # CRIA COLUNA VAZIA SE NÃO EXISTIR
+        # VERIFICA INSUMO
         # ==========================================
         if "Insumo" not in df_user.columns:
-            df_user["Insumo"] = ""
+
+            st.error(
+                "A coluna 'Insumo' não foi encontrada "
+                "na planilha do usuário."
+            )
+
+            st.stop()
+
+        if "Insumo" not in df_seinfra.columns:
+
+            st.error(
+                "A coluna 'Insumo' não foi encontrada "
+                "na tabela Seinfra."
+            )
+
+            st.stop()
 
         # ==========================================
         # LIMPEZA INSUMO
@@ -170,7 +240,16 @@ if file_seinfra and file_user:
             .str.strip()
         )
 
-        # Remove linhas vazias
+        df_seinfra["Insumo"] = (
+            df_seinfra["Insumo"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        # ==========================================
+        # REMOVE LINHAS SEM INSUMO
+        # ==========================================
         df_user = df_user[
             df_user["Insumo"] != ""
         ]
@@ -187,25 +266,11 @@ if file_seinfra and file_user:
         for coluna in colunas_necessarias:
 
             if coluna not in df_user.columns:
-                df_user[coluna] = ""
 
-        # ==========================================
-        # GARANTE COLUNAS NA SEINFRA
-        # ==========================================
-        if "PREÇO UNITÁRIO" not in df_seinfra.columns:
-
-            for coluna in df_seinfra.columns:
-
-                if "PREÇO" in coluna.upper():
-
-                    df_seinfra.rename(
-                        columns={
-                            coluna: "PREÇO UNITÁRIO"
-                        },
-                        inplace=True
-                    )
-
-                    break
+                if coluna == "QUANT.":
+                    df_user[coluna] = 0
+                else:
+                    df_user[coluna] = ""
 
         # ==========================================
         # MERGE
@@ -234,7 +299,7 @@ if file_seinfra and file_user:
         )
 
         # ==========================================
-        # TRATA VALORES
+        # CONVERSÃO NUMÉRICA
         # ==========================================
         df_merged["PREÇO UNITÁRIO"] = (
             pd.to_numeric(
@@ -268,6 +333,8 @@ if file_seinfra and file_user:
         # ==========================================
         # MÉTRICAS
         # ==========================================
+        st.subheader("📊 Indicadores")
+
         c1, c2, c3 = st.columns(3)
 
         total_geral = df_merged["Total_Item"].sum()
@@ -284,7 +351,7 @@ if file_seinfra and file_user:
 
         c3.metric(
             "BDI Aplicado",
-            f"{bdi}%"
+            f"{bdi:.2f}%"
         )
 
         # ==========================================
@@ -332,9 +399,7 @@ if file_seinfra and file_user:
         # ==========================================
         # TABELA
         # ==========================================
-        st.subheader(
-            "📑 Planilha Final"
-        )
+        st.subheader("📑 Planilha Final")
 
         st.dataframe(
 
@@ -344,6 +409,7 @@ if file_seinfra and file_user:
                     "DESCRIÇÃO DOS SERVIÇOS",
                     "UND",
                     "QUANT.",
+                    "PREÇO UNITÁRIO",
                     "Custo_Atualizado",
                     "Total_Item"
                 ]
@@ -353,7 +419,7 @@ if file_seinfra and file_user:
         )
 
         # ==========================================
-        # EXPORTAÇÃO
+        # EXPORTAÇÃO EXCEL
         # ==========================================
         output = BytesIO()
 
@@ -369,14 +435,19 @@ if file_seinfra and file_user:
             )
 
         st.download_button(
-            "📥 Baixar Planilha TLA Atualizada",
-            output.getvalue(),
-            "orcamento_tla_final.xlsx"
+            label="📥 Baixar Planilha TLA Atualizada",
+            data=output.getvalue(),
+            file_name="orcamento_tla_final.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
         )
 
     except Exception as e:
 
-        st.error("Erro detectado:")
+        st.error("❌ Erro detectado no processamento")
+
         st.code(str(e))
 
 else:
