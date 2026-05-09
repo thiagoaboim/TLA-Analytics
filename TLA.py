@@ -38,14 +38,14 @@ if file_seinfra and file_usuario:
         df_user = pd.read_excel(file_usuario, skiprows=7)
 
     # Limpeza de dados (removendo linhas vazias de código)
-    df_user = df_user.dropna(subset=['Codigo Seinfra'])
+    df_user = df_user.dropna(subset=['Insumo'])
 
     # Cruzamento de Dados (Merge)
     # Buscamos o Preço Unitário na Seinfra usando o código da sua planilha
     df_merged = pd.merge(
-        df_user[['Codigo Seinfra', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.']], 
+        df_user[['Insumo', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.']], 
         df_seinfra[['CÓDIGO', 'PREÇO UNITÁRIO']], 
-        left_on='Codigo Seinfra', 
+        left_on='Insumo', 
         right_on='CÓDIGO', 
         how='left'
     )
@@ -80,7 +80,7 @@ if file_seinfra and file_usuario:
     # Tabela Editável e Final
     st.subheader("📑 Planilha Final para Exportação")
     st.write("Valores recalculados com base na última tabela Seinfra carregada:")
-    st.dataframe(df_merged[['Codigo Seinfra', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.', 'Custo_Atualizado', 'Total_Item']], use_container_width=True)
+    st.dataframe(df_merged[['Insumo', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.', 'Custo_Atualizado', 'Total_Item']], use_container_width=True)
 
     # Exportação
     output = BytesIO()
