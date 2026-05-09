@@ -37,9 +37,26 @@ if file_seinfra and file_usuario:
     else:
         df_user = pd.read_excel(file_usuario, skiprows=7)
 
-    # Limpeza de dados (removendo linhas vazias de Insumo)
-    df_user = df_user.dropna(subset=['Insumo'])
+    df_user = pd.read_excel(file_usuario)
 
+    # Padroniza nomes das colunas
+    df_user.columns = df_user.columns.str.strip()
+
+    # Verifica se existe
+    if 'Insumo' not in df_user.columns:
+    st.error("A coluna 'Insumo' não foi encontrada na planilha.")
+    st.write("Colunas encontradas:", df_user.columns.tolist())
+    st.stop()
+
+    # Limpeza
+    df_user['Insumo'] = df_user['Insumo'].astype(str).str.strip()
+
+    # Remove vazios
+    df_user = df_user[
+    (df_user['Insumo'].notna()) &
+    (df_user['Insumo'] != '')
+    ]
+    
     # Cruzamento de Dados (Merge)
     # Buscamos o Preço Unitário na Seinfra usando o Insumo da sua planilha
     df_merged = pd.merge(
