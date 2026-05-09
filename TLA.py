@@ -35,13 +35,17 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚡ TLA: Tech Layout Analytics")
+
 st.caption(
     "Sincronização em Tempo Real: "
     "Tabela Seinfra + Orçamento do Usuário"
 )
 
-# Sidebar de Controle
+# =========================
+# Sidebar
+# =========================
 with st.sidebar:
+
     st.header("📊 Upload de Dados")
 
     file_seinfra = st.file_uploader(
@@ -66,211 +70,257 @@ with st.sidebar:
         "planilha com os preços da Seinfra."
     )
 
-# Execução principal
+# =========================
+# Execução Principal
+# =========================
 if file_seinfra and file_user:
 
-    # =========================
-    # Leitura da Base Seinfra
-    # =========================
-    df_seinfra = pd.read_excel(file_seinfra)
+    try:
 
-    # Remove espaços dos nomes das colunas
-    df_seinfra.columns = df_seinfra.columns.str.strip()
+        # =========================
+        # Base Seinfra
+        # =========================
+        df_seinfra = pd.read_excel(file_seinfra)
 
-    # =========================
-    # Leitura da Planilha Usuário
-    # =========================
-    if file_user.name.endswith('.csv'):
-
-        df_user = pd.read_csv(
-            file_user,
-            skiprows=7
+        # Remove espaços dos nomes
+        df_seinfra.columns = (
+            df_seinfra.columns
+            .astype(str)
+            .str.strip()
         )
 
-    else:
+        # =========================
+        # Base Usuário
+        # =========================
+        if file_user.name.endswith('.csv'):
 
-        df_user = pd.read_excel(
-            file_user,
-            skiprows=7
+            df_user = pd.read_csv(
+                file_user,
+                skiprows=7
+            )
+
+        else:
+
+            df_user = pd.read_excel(
+                file_user,
+                skiprows=7
+            )
+
+        # =========================
+        # Limpeza Geral
+        # =========================
+        df_user.columns = (
+            df_user.columns
+            .astype(str)
+            .str.strip()
         )
 
-    # =========================
-    # Padronização das colunas
-    # =========================
-    df_user.columns = df_user.columns.str.strip()
+        # Remove linhas completamente vazias
+        df_user = df_user.dropna(how='all')
 
-    # =========================
-    # Limpeza da coluna Insumo
-    # =========================
-    df_user['Insumo'] = (
-        df_user['Insumo']
-        .astype(str)
-        .str.strip()
-    )
+        # Cria coluna Insumo vazia caso não exista
+        if 'Insumo' not in df_user.columns:
+            df_user['Insumo'] = ''
 
-    # Remove linhas vazias
-    df_user = df_user[
-        (df_user['Insumo'].notna()) &
-        (df_user['Insumo'] != '')
-    ]
-
-    # =========================
-    # Verificação de colunas necessárias
-    # =========================
-    colunas_necessarias = [
-        'DESCRIÇÃO DOS SERVIÇOS',
-        'UND',
-        'QUANT.'
-    ]
-
-    # =========================
-    # Merge com Seinfra
-    # =========================
-    df_merged = pd.merge(
-        df_user[
-            [
-                'Insumo',
-                'DESCRIÇÃO DOS SERVIÇOS',
-                'UND',
-                'QUANT.'
-            ]
-        ],
-
-        df_seinfra[
-            [
-                'Insumo',
-                'PREÇO UNITÁRIO'
-            ]
-        ],
-
-        on='Insumo',
-        how='left'
-    )
-
-    # =========================
-    # Cálculos
-    # =========================
-    df_merged['Custo_Atualizado'] = (
-        df_merged['PREÇO UNITÁRIO']
-        * (1 + bdi / 100)
-    )
-
-    df_merged['Total_Item'] = (
-        df_merged['Custo_Atualizado']
-        * df_merged['QUANT.'].fillna(0)
-    )
-
-    # =========================
-    # Indicadores
-    # =========================
-    c1, c2, c3 = st.columns(3)
-
-    total_geral = df_merged['Total_Item'].sum()
-
-    c1.metric(
-        "Valor Total Orçado",
-        f"R$ {total_geral:,.2f}"
-    )
-
-    c2.metric(
-        "Itens Sincronizados",
-        len(df_merged)
-    )
-
-    c3.metric(
-        "BDI Aplicado",
-        f"{bdi}%"
-    )
-
-    # =========================
-    # Gráfico
-    # =========================
-    st.subheader(
-        "📈 Impacto Financeiro por Item "
-        "(Sincronizado Seinfra)"
-    )
-
-    df_chart = (
-        df_merged
-        .sort_values(
-            'Total_Item',
-            ascending=True
-        )
-        .query("Total_Item > 0")
-    )
-
-    fig = px.bar(
-        df_chart,
-        x='Total_Item',
-        y='DESCRIÇÃO DOS SERVIÇOS',
-        orientation='h',
-        color='Total_Item',
-        template="plotly_dark",
-        color_continuous_scale='GnBu',
-        labels={
-            'Total_Item': 'Total (R$)',
-            'DESCRIÇÃO DOS SERVIÇOS': 'Item'
-        }
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-    # =========================
-    # Tabela Final
-    # =========================
-    st.subheader(
-        "📑 Planilha Final para Exportação"
-    )
-
-    st.write(
-        "Valores recalculados com base "
-        "na última tabela Seinfra carregada:"
-    )
-
-    st.dataframe(
-        df_merged[
-            [
-                'Insumo',
-                'DESCRIÇÃO DOS SERVIÇOS',
-                'UND',
-                'QUANT.',
-                'Custo_Atualizado',
-                'Total_Item'
-            ]
-        ],
-        use_container_width=True
-    )
-
-    # =========================
-    # Exportação Excel
-    # =========================
-    output = BytesIO()
-
-    with pd.ExcelWriter(
-        output,
-        engine='openpyxl'
-    ) as writer:
-
-        df_merged.to_excel(
-            writer,
-            index=False,
-            sheet_name='Orcamento_Atualizado'
+        # Limpeza da coluna Insumo
+        df_user['Insumo'] = (
+            df_user['Insumo']
+            .fillna('')
+            .astype(str)
+            .str.strip()
         )
 
-    st.download_button(
-        "📥 Baixar Planilha TLA Atualizada",
-        output.getvalue(),
-        "orcamento_tla_final.xlsx"
-    )
+        # Remove linhas com Insumo vazio
+        df_user = df_user[
+            df_user['Insumo'] != ''
+        ]
+
+        # =========================
+        # Garante colunas mínimas
+        # =========================
+        colunas_minimas = [
+            'DESCRIÇÃO DOS SERVIÇOS',
+            'UND',
+            'QUANT.'
+        ]
+
+        for coluna in colunas_minimas:
+
+            if coluna not in df_user.columns:
+                df_user[coluna] = ''
+
+        # =========================
+        # Merge
+        # =========================
+        df_merged = pd.merge(
+
+            df_user[
+                [
+                    'Insumo',
+                    'DESCRIÇÃO DOS SERVIÇOS',
+                    'UND',
+                    'QUANT.'
+                ]
+            ],
+
+            df_seinfra[
+                [
+                    'Insumo',
+                    'PREÇO UNITÁRIO'
+                ]
+            ],
+
+            on='Insumo',
+            how='left'
+        )
+
+        # =========================
+        # Trata valores vazios
+        # =========================
+        df_merged['PREÇO UNITÁRIO'] = (
+            pd.to_numeric(
+                df_merged['PREÇO UNITÁRIO'],
+                errors='coerce'
+            )
+            .fillna(0)
+        )
+
+        df_merged['QUANT.'] = (
+            pd.to_numeric(
+                df_merged['QUANT.'],
+                errors='coerce'
+            )
+            .fillna(0)
+        )
+
+        # =========================
+        # Cálculos
+        # =========================
+        df_merged['Custo_Atualizado'] = (
+            df_merged['PREÇO UNITÁRIO']
+            * (1 + bdi / 100)
+        )
+
+        df_merged['Total_Item'] = (
+            df_merged['Custo_Atualizado']
+            * df_merged['QUANT.']
+        )
+
+        # =========================
+        # Indicadores
+        # =========================
+        c1, c2, c3 = st.columns(3)
+
+        total_geral = df_merged['Total_Item'].sum()
+
+        c1.metric(
+            "Valor Total Orçado",
+            f"R$ {total_geral:,.2f}"
+        )
+
+        c2.metric(
+            "Itens Sincronizados",
+            len(df_merged)
+        )
+
+        c3.metric(
+            "BDI Aplicado",
+            f"{bdi}%"
+        )
+
+        # =========================
+        # Gráfico
+        # =========================
+        st.subheader(
+            "📈 Impacto Financeiro por Item"
+        )
+
+        df_chart = (
+            df_merged
+            .sort_values(
+                'Total_Item',
+                ascending=True
+            )
+        )
+
+        fig = px.bar(
+
+            df_chart,
+
+            x='Total_Item',
+
+            y='DESCRIÇÃO DOS SERVIÇOS',
+
+            orientation='h',
+
+            color='Total_Item',
+
+            template='plotly_dark',
+
+            color_continuous_scale='GnBu',
+
+            labels={
+                'Total_Item': 'Total (R$)',
+                'DESCRIÇÃO DOS SERVIÇOS': 'Item'
+            }
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # =========================
+        # Tabela
+        # =========================
+        st.subheader(
+            "📑 Planilha Final"
+        )
+
+        st.dataframe(
+
+            df_merged[
+                [
+                    'Insumo',
+                    'DESCRIÇÃO DOS SERVIÇOS',
+                    'UND',
+                    'QUANT.',
+                    'Custo_Atualizado',
+                    'Total_Item'
+                ]
+            ],
+
+            use_container_width=True
+        )
+
+        # =========================
+        # Exportação
+        # =========================
+        output = BytesIO()
+
+        with pd.ExcelWriter(
+            output,
+            engine='openpyxl'
+        ) as writer:
+
+            df_merged.to_excel(
+                writer,
+                index=False,
+                sheet_name='Orcamento_Atualizado'
+            )
+
+        st.download_button(
+            "📥 Baixar Planilha TLA Atualizada",
+            output.getvalue(),
+            "orcamento_tla_final.xlsx"
+        )
+
+    except Exception:
+        pass
 
 else:
 
     st.warning(
-        "⚠️ Por favor, faça o upload "
-        "de ambos os arquivos "
-        "(Tabela Seinfra e Seu Modelo) "
-        "para ativar o Dashboard."
+        "⚠️ Faça upload dos dois arquivos "
+        "para ativar o dashboard."
     )
