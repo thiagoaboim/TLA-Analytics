@@ -100,18 +100,6 @@ if file_seinfra and file_user:
     df_user.columns = df_user.columns.str.strip()
 
     # =========================
-    # Verificação da coluna Insumo
-    # =========================
-    if 'Insumo' not in df_user.columns:
-
-        st.write(
-            "Colunas encontradas:",
-            df_user.columns.tolist()
-        )
-
-        st.stop()
-
-    # =========================
     # Limpeza da coluna Insumo
     # =========================
     df_user['Insumo'] = (
@@ -134,17 +122,6 @@ if file_seinfra and file_user:
         'UND',
         'QUANT.'
     ]
-
-    for coluna in colunas_necessarias:
-
-        if coluna not in df_user.columns:
-
-            st.error(
-                f"A coluna '{coluna}' "
-                f"não foi encontrada."
-            )
-
-            st.stop()
 
     # =========================
     # Merge com Seinfra
