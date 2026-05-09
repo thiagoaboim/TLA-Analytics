@@ -43,7 +43,7 @@ if file_seinfra and file_usuario:
     df_user.columns = df_user.columns.str.strip()
 
     # Verifica se existe
-    if 'Insumo' not in df_user.columns:
+if 'Insumo' not in df_user.columns:
     st.error("A coluna 'Insumo' não foi encontrada na planilha.")
     st.write("Colunas encontradas:", df_user.columns.tolist())
     st.stop()
