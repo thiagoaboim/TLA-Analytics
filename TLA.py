@@ -25,7 +25,7 @@ with st.sidebar:
     file_usuario = st.file_uploader("2. Sua Planilha de Quantidades (xlsx/csv)", type=["xlsx", "csv"])
     bdi = st.number_input("BDI Padrão (%)", value=25.0)
     st.divider()
-    st.info("O TLA cruzará os códigos da sua planilha com os preços da Seinfra.")
+    st.info("O TLA cruzará os Insumos da sua planilha com os preços da Seinfra.")
 
 if file_seinfra and file_usuario:
     # Lendo Base Seinfra
@@ -37,16 +37,16 @@ if file_seinfra and file_usuario:
     else:
         df_user = pd.read_excel(file_usuario, skiprows=7)
 
-    # Limpeza de dados (removendo linhas vazias de código)
+    # Limpeza de dados (removendo linhas vazias de Insumo)
     df_user = df_user.dropna(subset=['Insumo'])
 
     # Cruzamento de Dados (Merge)
-    # Buscamos o Preço Unitário na Seinfra usando o código da sua planilha
+    # Buscamos o Preço Unitário na Seinfra usando o Insumo da sua planilha
     df_merged = pd.merge(
         df_user[['Insumo', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.']], 
-        df_seinfra[['CÓDIGO', 'PREÇO UNITÁRIO']], 
+        df_seinfra[['Insumo', 'PREÇO UNITÁRIO']], 
         left_on='Insumo', 
-        right_on='CÓDIGO', 
+        right_on='Insumo', 
         how='left'
     )
 
