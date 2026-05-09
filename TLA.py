@@ -22,45 +22,45 @@ st.caption("Sincronização em Tempo Real: Tabela Seinfra + Orçamento do Usuár
 with st.sidebar:
     st.header("📊 Upload de Dados")
     file_seinfra = st.file_uploader("1. Tabela Oficial Seinfra (xlsx)", type=["xlsx"])
-    file_usuario = st.file_uploader("2. Sua Planilha de Quantidades (xlsx/csv)", type=["xlsx", "csv"])
+    file_user = st.file_uploader("2. Sua Planilha de Quantidades (xlsx/csv)", type=["xlsx", "csv"])
     bdi = st.number_input("BDI Padrão (%)", value=25.0)
     st.divider()
     st.info("O TLA cruzará os Insumos da sua planilha com os preços da Seinfra.")
 
-if file_seinfra and file_usuario:
+if file_seinfra and file_user:
     # Lendo Base Seinfra
     df_seinfra = pd.read_excel(file_seinfra)
     
     # Lendo Planilha do Usuário (Tratando o CSV enviado ou XLSX)
-    if file_usuario.name.endswith('.csv'):
-        df_usuario = pd.read_csv(file_usuario, skiprows=7) # Pula o cabeçalho conforme seu modelo
+    if file_user.name.endswith('.csv'):
+        df_user = pd.read_csv(file_user, skiprows=7) # Pula o cabeçalho conforme seu modelo
     else:
-        df_usuario = pd.read_excel(file_usuario, skiprows=7)
+        df_user = pd.read_excel(file_user, skiprows=7)
 
-    df_usuario = pd.read_excel(file_usuario)
+    df_user = pd.read_excel(file_user)
 
     # Padroniza nomes das colunas
-    df_usuario.columns = df_usuario.columns.str.strip()
+    df_user.columns = df_user.columns.str.strip()
 
     # Verifica se existe
-if 'Insumo' not in df_usuario.columns:
+if 'Insumo' not in df_user.columns:
     st.error("A coluna 'Insumo' não foi encontrada na planilha.")
-    st.write("Colunas encontradas:", df_usuario.columns.tolist())
+    st.write("Colunas encontradas:", df_user.columns.tolist())
     st.stop()
 
     # Limpeza
-    df_usuario['Insumo'] = df_usuario['Insumo'].astype(str).str.strip()
+    df_user['Insumo'] = df_user['Insumo'].astype(str).str.strip()
 
     # Remove vazios
-    df_usuario = df_usuario[
-    (df_usuario['Insumo'].notna()) &
-    (df_usuario['Insumo'] != '')
+    df_user = df_user[
+    (df_user['Insumo'].notna()) &
+    (df_user['Insumo'] != '')
     ]
     
     # Cruzamento de Dados (Merge)
     # Buscamos o Preço Unitário na Seinfra usando o Insumo da sua planilha
     df_merged = pd.merge(
-        df_usuario[['Insumo', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.']], 
+        df_user[['Insumo', 'DESCRIÇÃO DOS SERVIÇOS', 'UND', 'QUANT.']], 
         df_seinfra[['Insumo', 'PREÇO UNITÁRIO']], 
         left_on='Insumo', 
         right_on='Insumo', 
