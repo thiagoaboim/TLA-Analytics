@@ -104,11 +104,6 @@ if file_seinfra and file_user:
     # =========================
     if 'Insumo' not in df_user.columns:
 
-        st.error(
-            "A coluna 'Insumo' "
-            "não foi encontrada na planilha."
-        )
-
         st.write(
             "Colunas encontradas:",
             df_user.columns.tolist()
